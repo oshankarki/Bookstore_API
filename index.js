@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const fileUpload = require('express-fileupload');
+const { spawn } = require('child_process');
 
 const dotenv = require('dotenv')
 dotenv.config()
@@ -17,34 +18,43 @@ app.use(fileUpload());
 app.use(cors());
 
 const userRoutes = require('./app/routes/route.user');
-const bannerRoutes = require('./app/routes/route.banner');
 const authRoutes = require('./app/routes/route.auth');
-const bookRoutes = require('./app/routes/route.book');
-const categoryRoutes = require('./app/routes/route.category');
-const authorRoutes = require('./app/routes/route.author');
-const couponRoutes = require('./app/routes/route.coupon');
 
 
 
 
-
-app.use('/api/v1', authRoutes);
-app.use('/api/v1/user', userRoutes);
-app.use('/api/v1/banner', bannerRoutes);
-app.use('/api/v1/book', bookRoutes);
-app.use('/api/v1/category', categoryRoutes);
-app.use('/api/v1/author', authorRoutes);
-app.use('/api/v1/coupon', couponRoutes);
-
-
-
+app.use('/api/house', authRoutes);
+app.use('/api/house/user', userRoutes);
 
 const verifyJWT = require('./app/middlewares/verifyJWT');
-// app.use(verifyJWT);
+app.use(verifyJWT);
+app.post('/api/house/predict', async(req, res) => {
+    console.log("Received data from frontend:", req.body);
 
-app.get('/api/v1/test', (req, res) => {
-    res.send('Hello World!' + req.user);
-})
+    const data = {};
+    for (let key in req.body) {
+        data[key] = parseInt(req.body[key], 10);
+    }
+    console.log(JSON.stringify(data))
+    const pythonProcess = spawn('python', ['/Users/oshankarki/Downloads/HousePrice/backend/app/predict/pr.py', [JSON.stringify(data)]]);
+
+    pythonProcess.stdout.on('data', (data) => {
+        const predictedPrice = parseFloat(data.toString());
+        res.json({ predictedPrice });
+    });
+
+    // pythonProcess.stderr.on('data', (data) => {
+    //     console.error(`Error: ${data.toString()}`);
+    //     res.status(500).json({ message: 'Internal server error' });
+    // });
+});
+
+
+
+
+
+
+
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

@@ -9,22 +9,22 @@ const errorMsg = {
     error: "Please provide valid email and password"
 }
 
-exports.attemptLogin = async (req, res) => {
-    try{
-        const {email, password} = req.body;
+exports.attemptLogin = async(req, res) => {
+    try {
+        const { email, password } = req.body;
 
-        if(!email || !password) return res.status(401).json(errorMsg);
+        if (!email || !password) return res.status(401).json(errorMsg);
 
-        const user = await User.findOne({'email': email});
-        if(!user) return res.status(401).json(errorMsg);
+        const user = await User.findOne({ 'email': email });
+        if (!user) return res.status(401).json(errorMsg);
 
         const validPassword = await bcrypt.compare(password, user.password);
-        if(validPassword){
+        if (validPassword) {
             const accessToken = generateAccessToken(generatePayload(user));
             const refreshToken = generateRefreshToken(generatePayload(user));
-            try{
-                await Token.create({'token': refreshToken, 'user_id': user._id});
-                res.cookie('refreshToken', refreshToken, {httpOnly: true, maxAge: 24 * 60 * 60 * 1000});
+            try {
+                await Token.create({ 'token': refreshToken, 'user_id': user._id });
+                res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
                 res.status(200).json({
                     success: true,
                     message: "Login Successful",
@@ -33,45 +33,42 @@ exports.attemptLogin = async (req, res) => {
                         accessToken: accessToken,
                         refreshToken: refreshToken
                     }
-                });    
-            }catch(err){
-                return res.status(401).json({...errorMsg, message: "Something went wrong!"});
+                });
+            } catch (err) {
+                return res.status(401).json({...errorMsg, message: "Something went wrong!" });
             }
-        }else{
+        } else {
             return res.status(401).json(errorMsg);
         }
-    }catch(err)
-    {
+    } catch (err) {
         return res.status(500).json({
-            ...errorMsg, 
+            ...errorMsg,
             message: err.message || "Some error occurred while attempting the login!"
         });
     }
 };
 
-exports.getNewAccessToken = async (req, res) => {
+exports.getNewAccessToken = async(req, res) => {
     const refreshToken = req.body.refreshToken;
     // const refreshToken = req.cookies.refreshToken;
 
-    if(refreshToken == null) return res.status(401).json(
-        {
-            message: 'Refresh Token Not Found'
-        }
-    );
-    try{
-        const token = await Token.findOne({'token': refreshToken});
-        if(!token) return res.status(401).json({
+    if (refreshToken == null) return res.status(401).json({
+        message: 'Refresh Token Not Found'
+    });
+    try {
+        const token = await Token.findOne({ 'token': refreshToken });
+        if (!token) return res.status(401).json({
             success: false,
             message: 'Refresh token not found',
             error: 'Invalid refresh token'
         });
         jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-            if(err) return res.status(403).json({
+            if (err) return res.status(403).json({
                 success: false,
                 message: 'Refresh token expired',
                 error: 'Invalid refresh token'
             });
-            if(user.sub != token.user_id) return res.status(403).json({
+            if (user.sub != token.user_id) return res.status(403).json({
                 success: false,
                 message: 'Invalid refresh token',
                 error: 'Invalid refresh token'
@@ -85,17 +82,16 @@ exports.getNewAccessToken = async (req, res) => {
                 }
             });
         });
-    }catch(err){
+    } catch (err) {
         return res.status(500).json({
             success: false,
-            message:"Some error occurred while attempting the login",
+            message: "Some error occurred while attempting the login",
             error: err.message
         });
     }
 }
 
-function generatePayload(user)
-{
+function generatePayload(user) {
     return {
         sub: user._id,
         email: user.email,
